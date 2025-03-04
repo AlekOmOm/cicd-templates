@@ -1,0 +1,66 @@
+# -------------------------------
+# --------- Build stage ---------
+
+# Define build arguments with defaults from .env.config
+ARG NODE_VERSION=${NODE_VERSION:-22.14.0}
+ARG NODE_VERSION_TAG=${NODE_VERSION_TAG:-slim}
+ARG APP_ENV=${DEV_ENV:-development}
+ARG ENV_FILE=${DEV_ENV_FILE:-.env.dev}
+
+# Node.js build stage
+FROM node:${NODE_VERSION}-${NODE_VERSION_TAG} as builder
+
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application code
+COPY . .
+
+# -------------------------------
+# --------- Runtime stage -------
+
+# Runtime stage - using a smaller Node.js image
+FROM node:${NODE_VERSION}-${NODE_VERSION_TAG}
+
+# Forward build arguments to runtime stage
+ARG APP_ENV
+ARG ENV_FILE
+
+# Create app directory
+WORKDIR /app
+
+# Install production-only dependencies
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/package*.json ./
+
+# Copy application code
+COPY --from=builder /usr/src/app/server.js ./
+COPY --from=builder /usr/src/app/public ./public
+
+# Copy environment files
+COPY .env* ./
+
+# Set environment from build args
+ENV APP_ENV=${APP_ENV}
+ENV ENV_FILE=${ENV_FILE}
+
+# Create a symlink from the specified env file to .env for the application to find easily
+RUN if [ -f "${ENV_FILE}" ]; then ln -sf ${ENV_FILE} .env; fi
+
+# Create non-root user
+RUN useradd -m nodeuser
+RUN chown -R nodeuser:nodeuser /app
+
+# Change to non-root user
+USER nodeuser
+
+# Expose ports (default to 8080, will be overridden by env vars)
+EXPOSE ${PROD_PORT:-8080} ${DEV_PORT:-3000}
+
+# Command to run the application
+CMD ["node", "server.js"]

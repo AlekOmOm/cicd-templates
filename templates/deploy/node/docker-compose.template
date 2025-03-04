@@ -1,0 +1,15 @@
+services:
+  app:
+    image: ${DOCKER_REGISTRY:-ghcr.io}/${IMAGE_NAME:-user/pensum_run}:${TAG:-latest}
+    container_name: ${APP_NAME:-pensum_run}_${APP_ENV:-development}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:${PORT:-3000}"
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - APP_ENV=${APP_ENV:-development}
+      - APP_DEPLOYMENT=${GITHUB_RUN_NUMBER:-local}
+      - PORT=${PORT:-3000}
+    volumes:
+      # For development only - mount local files for hot-reloading
+      - ${DEV_MOUNT:-/dev/null}:/app/public:ro
