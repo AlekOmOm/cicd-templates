@@ -9,16 +9,13 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # GitHub username and repository name
-## prompt for user input
-
-while 
-
+# Prompt for user input
 while true; do
   read -p "Enter your GitHub username: " GITHUB_USERNAME
   read -p "Enter the repository name: " REPO_NAME
   echo
 
-  ## check if the user has entered the correct values
+  # Check if the user has entered the correct values
   echo -e "GitHub username: $GITHUB_USERNAME"
   echo -e "Repository name: $REPO_NAME"
   read -p "Is this correct? (y/n) " -n 1 -r
