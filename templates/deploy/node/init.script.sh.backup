@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# Colors for better readability
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to check if a command exists
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Function to print section header
+print_section() {
+  echo -e "\n${BLUE}=== $1 ===${NC}"
+}
+
+# Function to add config script to package.json
+add_config_script() {
+  print_section "Adding config script to package.json"
+  
+  # Check if Node.js is installed
+  if ! command_exists node; then
+    echo -e "${RED}Error: Node.js is required but not installed. Please install Node.js and try again.${NC}"
+    exit 1
+  fi
+  
+  # Use Node.js to update package.json
+  node -e '
+    const fs = require("fs");
+    try {
+      const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+      
+      if (!packageJson.scripts) {
+        packageJson.scripts = {};
+      }
+      
+      packageJson.scripts.config = "node scripts/apply-config.js";
+      
+      fs.writeFileSync("package.json", JSON.stringify(packageJson, null, 2));
+      console.log("\x1b[32m✓ Successfully added config script to package.json\x1b[0m");
+    } catch (error) {
+      console.error("\x1b[31mError updating package.json:", error.message, "\x1b[0m");
+      process.exit(1);
+    }
+  '
+}
+
+# Function to ensure apply-config.js is in the right location
+ensure_config_script() {
+  print_section "Ensuring apply-config.js is in the right location"
+  
+  # Create scripts directory if it doesn't exist
+  mkdir -p scripts
+  
+  if [ ! -f "scripts/apply-config.js" ] && [ -f "apply-config.js" ]; then
+    echo "Moving apply-config.js to scripts directory..."
+    cp apply-config.js scripts/
+    echo -e "${GREEN}✓ Moved apply-config.js to scripts directory${NC}"
+  elif [ ! -f "scripts/apply-config.js" ]; then
+    echo -e "${RED}Error: apply-config.js not found. Please ensure the file exists.${NC}"
+    exit 1
+  else
+    echo -e "${GREEN}✓ apply-config.js is already in the correct location${NC}"
+  fi
+}
+
+# Function to create or update .env.config if needed
+check_env_config() {
+  print_section "Checking .env.config file"
+  
+  if [ ! -f ".env.config" ] || [ ! -s ".env.config" ]; then
+    echo "Creating default .env.config file..."
+    cat > .env.config << EOL
+# Application Configuration
+APP_NAME=pensum_run
+APP_DESCRIPTION="Full Stack Node.js Application"
+APP_LICENSE=MIT
+
+# Node.js Configuration
+NODE_VERSION=22.14.0
+NODE_VERSION_TAG=slim
+NODE_MIN_VERSION=18.0.0
+
+# Docker Configuration
+DOCKER_REGISTRY=ghcr.io
+IMAGE_NAME=\${GITHUB_USERNAME}/\${APP_NAME}
+# Use slim base images to reduce size
+USE_SLIM_IMAGE=true
+
+# Environment Ports
+DEV_PORT=3000
+PROD_PORT=8080
+
+# Container Names
+DEV_CONTAINER_NAME=\${APP_NAME}-dev
+PROD_CONTAINER_NAME=\${APP_NAME}-prod
+
+# Environment Configuration
+DEV_ENV=development
+PROD_ENV=production
+DEV_LOG_LEVEL=debug
+PROD_LOG_LEVEL=info
+
+# Deployment Configuration
+DEV_BRANCH=development
+PROD_BRANCH=main
+
+# File Paths
+DEV_ENV_FILE=.env.dev
+PROD_ENV_FILE=.env.prod
+EOL
+    echo -e "${GREEN}✓ Created .env.config with default values${NC}"
+  else
+    echo -e "${GREEN}✓ .env.config already exists${NC}"
+  fi
+}
+
+# Function to set up GitHub secrets
+setup_github_secrets() {
+  print_section "GitHub Secrets Setup"
+  
+  if ! command_exists gh; then
+    echo -e "${YELLOW}GitHub CLI (gh) is not installed. Skipping GitHub secrets setup.${NC}"
+    echo "To set up secrets later, install the GitHub CLI and run 'gh secret set' manually."
+    return
+  fi
+  
+  # Check if user is logged in to GitHub
+  if ! gh auth status >/dev/null 2>&1; then
+    echo -e "${YELLOW}You are not logged in to GitHub CLI. Please login with 'gh auth login' and try again.${NC}"
+    return
+  fi
+  
+  read -p "Do you want to set up GitHub repository secrets for CI/CD? (y/n): " setup_secrets
+  
+  if [[ $setup_secrets != "y" && $setup_secrets != "Y" ]]; then
+    echo "Skipping GitHub secrets setup."
+    return
+  fi
+  
+  echo -e "${BLUE}Setting up GitHub repository secrets...${NC}"
+  
+  # Verify we're in a GitHub repository
+  if ! gh repo view >/dev/null 2>&1; then
+    echo -e "${YELLOW}Current directory is not a GitHub repository or you don't have access.${NC}"
+    return
+  fi
+  
+  # Get the repository name
+  repo_name=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+  echo -e "Setting up secrets for repository: ${GREEN}$repo_name${NC}"
+  
+  # SERVER_HOST
+  read -p "Enter the SERVER_HOST value (IP address or hostname of your deployment server): " server_host
+  if [ -n "$server_host" ]; then
+    gh secret set SERVER_HOST -b "$server_host"
+    echo -e "${GREEN}✓ SERVER_HOST secret set${NC}"
+  else
+    echo -e "${YELLOW}SERVER_HOST not set${NC}"
+  fi
+  
+  # SERVER_USER
+  read -p "Enter the SERVER_USER value (username for SSH login to your deployment server): " server_user
+  if [ -n "$server_user" ]; then
+    gh secret set SERVER_USER -b "$server_user"
+    echo -e "${GREEN}✓ SERVER_USER secret set${NC}"
+  else
+    echo -e "${YELLOW}SERVER_USER not set${NC}"
+  fi
+  
+  # SSH_PORT
+  read -p "Enter the SSH_PORT value (default: 22): " ssh_port
+  ssh_port=${ssh_port:-22}
+  gh secret set SSH_PORT -b "$ssh_port"
+  echo -e "${GREEN}✓ SSH_PORT secret set${NC}"
+  
+  # SSH_PRIVATE_KEY
+  echo -e "${BLUE}For SSH_PRIVATE_KEY, you need to provide the contents of your private SSH key.${NC}"
+  read -p "Enter the path to your SSH private key file (e.g., ~/.ssh/id_rsa): " ssh_key_path
+  
+  if [ -n "$ssh_key_path" ] && [ -f "$ssh_key_path" ]; then
+    ssh_key_content=$(cat "$ssh_key_path")
+    gh secret set SSH_PRIVATE_KEY -b "$ssh_key_content"
+    echo -e "${GREEN}✓ SSH_PRIVATE_KEY secret set${NC}"
+  else
+    echo -e "${YELLOW}SSH private key file not found or not specified. SSH_PRIVATE_KEY not set.${NC}"
+  fi
+  
+  echo -e "${GREEN}✓ GitHub secrets setup completed${NC}"
+}
+
+# Function to install dependencies and run the apply-config.js script
+run_config_script() {
+  print_section "Running configuration script"
+  
+  # Check if npm is available
+  if ! command_exists npm; then
+    echo -e "${RED}Error: npm is required but not installed. Please install npm and try again.${NC}"
+    exit 1
+  fi
+  
+  # Install dotenv if it's not installed
+  if ! node -e "try { require.resolve('dotenv'); } catch(e) { process.exit(1); }" >/dev/null 2>&1; then
+    echo "Installing dotenv dependency for apply-config.js..."
+    npm install --save-dev dotenv
+    echo -e "${GREEN}✓ Installed dotenv dependency${NC}"
+  fi
+  
+  echo "Running apply-config.js to generate configuration files..."
+  node scripts/apply-config.js
+  
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ Configuration applied successfully${NC}"
+  else
+    echo -e "${RED}× Error applying configuration${NC}"
+    exit 1
+  fi
+}
+
+# Main execution
+echo -e "${BLUE}🚀 Initializing project configuration system...${NC}"
+
+add_config_script
+ensure_config_script
+check_env_config
+setup_github_secrets
+run_config_script
+
+echo -e "\n${GREEN}✅ Initialization completed successfully!${NC}"
+echo -e "\nYou can now run ${YELLOW}npm run config${NC} whenever you update .env.config"
