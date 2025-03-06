@@ -13,8 +13,21 @@ echo -e "${YELLOW}===== Node.js CD Template Setup =====${NC}"
 # Get current directory
 CURRENT_DIR=$(pwd)
 
-# 1. Check Node.js installation
-echo -e "\n${YELLOW}Checking Node.js environment...${NC}"
+### ------------------- Setup Steps ------------------- ###
+
+# 0. Check Node.js installation
+# 1. populate .env.config
+# 2. Check/create package.json
+# 3. Check server file structure
+# 4. Check GitHub repo and secrets if possible
+# 5. Make scripts executable
+# 6. Remind about next steps
+# 7. create .gitignore with npx gitignore node
+
+### ---------
+
+# 0. Check Node.js installation
+echo -e "\n${YELLOW}0. Checking Node.js environment...${NC}"
 if ! command -v node &> /dev/null; then
     echo -e "${RED}Node.js is not installed.${NC}"
     echo -e "Please install Node.js from: https://nodejs.org/"
@@ -25,15 +38,28 @@ fi
 NODE_VERSION=$(node -v | cut -d 'v' -f 2)
 echo -e "${GREEN}✓ Node.js ${NODE_VERSION} is installed${NC}"
 
+# 1. populate .env.config
+echo -e "\n${YELLOW}1. Checking your .env.config...${NC}"
+
+if [ ! -f "scripts/populate_.env.config.sh" ]; then
+    echo -e "${RED}Error: scripts/populate_.env.config.sh not found!${NC}"
+    exit 1
+else
+    echo -e "${YELLOW}Populating .env.config...${NC}"
+    bash scripts/populate_.env.config.sh
+fi
+
+
+
 # 2. Check/create package.json
-echo -e "\n${YELLOW}Checking package.json...${NC}"
+echo -e "\n${YELLOW}2. Checking package.json...${NC}"
 if [ ! -f "package.json" ]; then
     echo -e "${YELLOW}No package.json found. Creating one...${NC}"
     npm init -y
 fi
 
 # 3. Check server file structure
-echo -e "\n${YELLOW}Checking server file structure...${NC}"
+echo -e "\n${YELLOW}3. Checking server file structure...${NC}"
 # Load NODE_SERVER_PATH from .env.config if exists
 if [ -f "config/.env.config" ]; then
     SERVER_PATH=$(grep -oP 'NODE_SERVER_PATH=\K.*' config/.env.config | tr -d "'" | tr -d '"')
@@ -111,6 +137,14 @@ else
     echo -e "${RED}Error: scripts directory not found!${NC}"
     echo -e "Please ensure you have fetched the template correctly."
     exit 1
+fi
+
+# create .gitignore with npx gitignore node
+
+if ! command -v gitignore &> /dev/null; then
+    echo -e "${YELLOW}Installing gitignore node...${NC}"
+    npm install -g gitignore-cli
+    npx gitignore node
 fi
 
 # 6. Remind about next steps

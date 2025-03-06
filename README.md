@@ -8,7 +8,6 @@
 ### Quick Start
 
 1. **Setup**: 
-- bash: 
 ```Git Bash 
 curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash
 ```
