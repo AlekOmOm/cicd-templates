@@ -1,0 +1,33 @@
+services:
+  app:
+    image: ${DOCKER_REGISTRY}/${IMAGE_NAME}:${TAG}
+    container_name: ${CONTAINER_NAME}
+    restart: ${RESTART_POLICY}
+    env_file:
+      - ./config/.env.deploy
+    ports:
+      - "${PORT}:${PORT}"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT}/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ${APP_ENV}_network
+    labels:
+      - "deployment.environment=${APP_ENV}"
+      - "deployment.date=${DEPLOYMENT_DATE}"
+      - "deployment.sha=${DEPLOYMENT_SHA}"
+      - "app.name=${APP_NAME}"
+      - "app.version=${APP_VERSION}"
+
+networks:
+  development_network:
+    name: ${APP_NAME}_dev_network
+    external: true # allows the network to be shared with other services
+    driver: bridge
+  production_network:
+    name: ${APP_NAME}_prod_network
+    external: true  
+    driver: bridge

@@ -8,9 +8,9 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# GitHub username and repository 
-GITHUB_USERNAME="YOUR-USERNAME"  # Change this to your GitHub username
-REPO_NAME="cicd-templates"
+# Default repository settings
+DEFAULT_USERNAME="AlekOmOm"  # Your GitHub username
+DEFAULT_REPO="cicd-templates"
 
 # Function to check if gh CLI is installed
 check_gh_cli() {
@@ -39,6 +39,68 @@ check_gh_auth() {
   fi
 }
 
+# Function to detect if a repo is accessible
+check_repo_access() {
+  local username=$1
+  local repo=$2
+  
+  if gh repo view "${username}/${repo}" &> /dev/null; then
+    return 0  # Success
+  else
+    return 1  # Failure
+  fi
+}
+
+# Function to prompt for repository info
+get_repo_info() {
+  local username=$DEFAULT_USERNAME
+  local repo=$DEFAULT_REPO
+  
+  # Try the default first
+  if check_repo_access "$username" "$repo"; then
+    echo -e "${GREEN}✓ Using repository: ${username}/${repo}${NC}"
+    GITHUB_USERNAME=$username
+    REPO_NAME=$repo
+    return
+  fi
+  
+  # Try the authenticated user's fork
+  local current_user=$(gh api user | grep -o '"login": *"[^"]*"' | sed 's/"login": *"\([^"]*\)"/\1/')
+  if [ -n "$current_user" ] && check_repo_access "$current_user" "$repo"; then
+    echo -e "${GREEN}✓ Found your fork: ${current_user}/${repo}${NC}"
+    GITHUB_USERNAME=$current_user
+    REPO_NAME=$repo
+    return
+  fi
+  
+  # Prompt for manual entry
+  echo -e "${YELLOW}Unable to automatically detect the repository.${NC}"
+  
+  read -p "Enter GitHub username for cicd-templates repo (default: $DEFAULT_USERNAME): " input_username
+  GITHUB_USERNAME=${input_username:-$DEFAULT_USERNAME}
+  
+  read -p "Enter repository name (default: $DEFAULT_REPO): " input_repo
+  REPO_NAME=${input_repo:-$DEFAULT_REPO}
+  
+  # Verify the repo is accessible
+  if ! check_repo_access "$GITHUB_USERNAME" "$REPO_NAME"; then
+    echo -e "${RED}Repository ${GITHUB_USERNAME}/${REPO_NAME} is not accessible.${NC}"
+    echo -e "Please check if:"
+    echo -e "1. The repository exists"
+    echo -e "2. The repository is public"
+    echo -e "3. You have the correct permissions"
+    
+    read -p "Do you want to try again? (y/n): " retry
+    if [[ $retry =~ ^[Yy]$ ]]; then
+      get_repo_info
+    else
+      exit 1
+    fi
+  else
+    echo -e "${GREEN}✓ Repository ${GITHUB_USERNAME}/${REPO_NAME} is accessible${NC}"
+  fi
+}
+
 # Setup GitHub aliases
 setup_aliases() {
   echo -e "\n${YELLOW}Setting up GitHub CLI aliases...${NC}"
@@ -46,18 +108,18 @@ setup_aliases() {
   # Define the fetch-cicd alias
   FETCH_ALIAS="!f() { echo \"Fetching template: \$1\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null; RET=\$?; rm -rf \"\$TMP_DIR\"; if [ \$RET -ne 0 ]; then echo \"Template \$1 not found or error occurred\"; exit 1; else echo \"Template \$1 copied successfully\"; fi; }; f"
   
-  # Define the list-cicd alias
-  LIST_ALIAS="!f() { echo \"Available templates:\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && find \"\$TMP_DIR/templates\" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | while read dir; do ls -d \"\$TMP_DIR/templates/\$dir\"/* >/dev/null 2>&1 && find \"\$TMP_DIR/templates/\$dir\" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | sed \"s/^/\$dir\//\"; done; rm -rf \"\$TMP_DIR\"; }; f"
+  # Define the list-cicd alias with improved formatting
+  LIST_ALIAS="!f() { echo \"Available templates:\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && find \"\$TMP_DIR/templates\" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | while read dir; do echo \"\n\033[1;34m→ \$dir\033[0m\"; ls -d \"\$TMP_DIR/templates/\$dir\"/* 2>/dev/null | grep -v \"\\.git\" | xargs -n1 basename 2>/dev/null | sed 's/^/  ✓ /'; done; rm -rf \"\$TMP_DIR\"; }; f"
   
   # Check if aliases already exist
-  if gh alias list | grep -q "fetch-cicd"; then
+  if gh alias list 2>/dev/null | grep -q "fetch-cicd"; then
     echo -e "${YELLOW}Updating existing fetch-cicd alias${NC}"
-    gh alias delete fetch-cicd > /dev/null
+    gh alias delete fetch-cicd > /dev/null 2>&1
   fi
   
-  if gh alias list | grep -q "list-cicd"; then
+  if gh alias list 2>/dev/null | grep -q "list-cicd"; then
     echo -e "${YELLOW}Updating existing list-cicd alias${NC}"
-    gh alias delete list-cicd > /dev/null
+    gh alias delete list-cicd > /dev/null 2>&1
   fi
   
   # Set the aliases
@@ -70,11 +132,20 @@ setup_aliases() {
 # Display usage examples
 show_examples() {
   echo -e "\n${GREEN}Setup complete! You can now use the following commands:${NC}"
-  echo -e "${YELLOW}gh list-cicd${NC} - List all available templates"
-  echo -e "${YELLOW}gh fetch-cicd deploy/node${NC} - Fetch the node deployment template"
-  echo
-  echo -e "The templates will be copied to your current directory."
-  echo -e "Remember to run fetch-cicd from the root of your project."
+  echo -e "\n${YELLOW}List available templates:${NC}"
+  echo -e "  gh list-cicd"
+  
+  echo -e "\n${YELLOW}Fetch a template into your project:${NC}"
+  echo -e "  cd /path/to/your/project"
+  echo -e "  gh fetch-cicd deploy/node"
+  
+  echo -e "\n${YELLOW}After fetching a template:${NC}"
+  echo -e "  1. Customize .env.config with your project settings"
+  echo -e "  2. Run 'npm install --save-dev dotenv' (if needed)"
+  echo -e "  3. Apply configuration with 'node scripts/apply-config.js'"
+  
+  echo -e "\n${YELLOW}Repository used for templates:${NC}"
+  echo -e "  https://github.com/${GITHUB_USERNAME}/${REPO_NAME}"
 }
 
 # Main function
@@ -83,10 +154,11 @@ main() {
   
   check_gh_cli
   check_gh_auth
+  get_repo_info
   setup_aliases
   show_examples
   
-  echo -e "\n${GREEN}Setup completed successfully!${NC}"
+  echo -e "\n${GREEN}✓ Setup completed successfully!${NC}"
 }
 
 # Run main function
