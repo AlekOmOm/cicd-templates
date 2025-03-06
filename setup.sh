@@ -168,7 +168,7 @@ cp -r "$TMP_DIR/templates/$1/"* . 2>/dev/null
 cp -r "$TMP_DIR/templates/$1/".[!.]* . 2>/dev/null
 
 rm -rf "$TMP_DIR"
-echo "✓ Template $1 copied successfully"
+echo "✓ Template $1 copied successfully\n"
 EOF
 
 # Create list-cicd script
