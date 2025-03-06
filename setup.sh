@@ -12,12 +12,6 @@ NC='\033[0m' # No Color
 DEFAULT_USERNAME="AlekOmOm"  # Your GitHub username
 DEFAULT_REPO="cicd-templates"
 
-# permissions
-
-chmod +x scripts.setup/gh/*             # Make all files in the directory executable
- 
-
-
 
 # Function to check if gh CLI is installed
 check_gh_cli() {
@@ -110,11 +104,12 @@ get_repo_info() {
 
 # Setup GitHub aliases
 setup_aliases() {
-# In setup.sh, create these scripts instead of complex aliases:
-mkdir -p ~/.local/bin
-
-# Create init-cicd script
-cat > ~/.local/bin/gh-init-cicd << 'EOF'
+  # Create scripts directory
+  SCRIPT_DIR="$HOME/Scripts/cicd-templates/cicd-scripts"
+  mkdir -p "$SCRIPT_DIR"
+  
+  # Create init-cicd script
+  cat > "$SCRIPT_DIR/gh-init-cicd" << 'EOF'
 #!/bin/bash
 if [ -z "$1" ]; then
   echo "Error: Template name required"
@@ -124,7 +119,7 @@ if [ -z "$1" ]; then
 fi
 
 # Fetch template
-~/.local/bin/gh-fetch-cicd "$1"
+"$HOME/Scripts/cicd-templates/cicd-scripts/gh-fetch-cicd" "$1"
 
 # Run setup script if available
 if [ -f ./CD-*.template-setup.sh ]; then
@@ -133,8 +128,8 @@ if [ -f ./CD-*.template-setup.sh ]; then
 fi
 EOF
 
-# Create fetch-cicd script
-cat > ~/.local/bin/gh-fetch-cicd << 'EOF'
+  # Create fetch-cicd script
+  cat > "$SCRIPT_DIR/gh-fetch-cicd" << 'EOF'
 #!/bin/bash
 if [ -z "$1" ]; then
   echo "Error: No template specified"
@@ -168,11 +163,11 @@ cp -r "$TMP_DIR/templates/$1/"* . 2>/dev/null
 cp -r "$TMP_DIR/templates/$1/".[!.]* . 2>/dev/null
 
 rm -rf "$TMP_DIR"
-echo "✓ Template $1 copied successfully\n"
+echo "✓ Template $1 copied successfully"
 EOF
 
-# Create list-cicd script
-cat > ~/.local/bin/gh-list-cicd << 'EOF'
+  # Create list-cicd script
+  cat > "$SCRIPT_DIR/gh-list-cicd" << 'EOF'
 #!/bin/bash
 # Template repo info
 USERNAME="${GITHUB_USERNAME:-AlekOmOm}"
@@ -194,34 +189,30 @@ done
 rm -rf "$TMP_DIR"
 EOF
 
+  # Make scripts executable
+  chmod +x "$SCRIPT_DIR/gh-init-cicd"
+  chmod +x "$SCRIPT_DIR/gh-fetch-cicd"
+  chmod +x "$SCRIPT_DIR/gh-list-cicd"
+  
+  # Remove existing aliases
+  gh alias delete init-cicd > /dev/null 2>&1
+  gh alias delete fetch-cicd > /dev/null 2>&1
+  gh alias delete list-cicd > /dev/null 2>&1
+  
+  # Add simple aliases that just call the scripts - using double quotes for path expansion
 
-# Make scripts executable
-chmod +x ~/.local/bin/gh-init-cicd
-chmod +x ~/.local/bin/gh-fetch-cicd
-chmod +x ~/.local/bin/gh-list-cicd
+    gh alias set init-cicd "!bash \"$SCRIPT_DIR/gh-init-cicd\" \"\$@\"" --clobber > /dev/null 2>&1
+    gh alias set fetch-cicd "!bash \"$SCRIPT_DIR/gh-fetch-cicd\" \"\$@\"" --clobber > /dev/null 2>&1  
+    gh alias set list-cicd "!bash \"$SCRIPT_DIR/gh-list-cicd\"" --clobber > /dev/null 2>&1 
 
-# remove existing aliases
-gh alias delete init-cicd > /dev/null 2>&1
-gh alias delete fetch-cicd > /dev/null 2>&1
-gh alias delete list-cicd > /dev/null 2>&1
+  # Add to PATH if needed
+  if [[ ":$PATH:" != *":$SCRIPT_DIR:"* ]]; then
+    echo "export PATH=\"$SCRIPT_DIR:\$PATH\"" >> ~/.bashrc
+    echo "export PATH=\"$SCRIPT_DIR:\$PATH\"" >> ~/.zshrc
+    echo -e "${GREEN}✓ Added $SCRIPT_DIR to PATH${NC}"
+  fi
 
-# Add simple aliases that just call the scripts
-
-gh alias set init-cicd '!~/.local/bin/gh-init-cicd "$@"' --clobber > /dev/null 2>&1
-gh alias set fetch-cicd '!~/.local/bin/gh-fetch-cicd "$@"' --clobber > /dev/null 2>&1
-gh alias set list-cicd '!~/.local/bin/gh-list-cicd' --clobber > /dev/null 2>&1
-
-# Add to PATH if needed
-
-  #if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-  # export PATH="$HOME/.local/bin:$PATH"
-    
-
-  #  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-  #  echo "Added ~/.local/bin to PATH in ~/.bashrc"
-  #  echo "You may need to restart your shell or run 'source ~/.bashrc'"
-  # fi
-
+  echo -e "${GREEN}✓ GitHub CLI aliases set up successfully${NC}"
 }
 
 # Display usage examples
