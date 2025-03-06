@@ -12,6 +12,13 @@ NC='\033[0m' # No Color
 DEFAULT_USERNAME="AlekOmOm"  # Your GitHub username
 DEFAULT_REPO="cicd-templates"
 
+# permissions
+
+chmod +x scripts.setup/gh/*             # Make all files in the directory executable
+ 
+
+
+
 # Function to check if gh CLI is installed
 check_gh_cli() {
   if ! command -v gh &> /dev/null; then
@@ -103,103 +110,134 @@ get_repo_info() {
 
 # Setup GitHub aliases
 setup_aliases() {
-  echo -e "\n${YELLOW}Setting up GitHub CLI aliases...${NC}"
+# In setup.sh, create these scripts instead of complex aliases:
+mkdir -p ~/.local/bin
 
-  # init-cicd alias; combining fetch + init setup.sh
-  # # runs 
-  #  - fetch-cicd <template-name>
-  #  - if CD-*.template-setup.sh exists, runs it
-  # # Usage: gh init-cicd <template-name>
-  INIT_ALIAS="!f() { echo \"Initializing template: \$1\"; gh fetch-cicd \"\$1\" && if [ -f ./CD-*.template-setup.sh ]; then chmod +x ./CD-*.template-setup.sh && ./CD-*.template-setup.sh; fi; }; f"
-  
-  # Define the fetch-cicd alias
-  # # Fetches a template from the Repository
-  #   - sets content at the root of the project
-  # # Usage: gh fetch-cicd <template-name>
-    FETCH_ALIAS="!f() { 
-      if [ -z \"\$1\" ]; then
-        echo \"Error: No template specified\";
-        echo \"Usage: gh fetch-cicd category/template\";
-        echo \"Example: gh fetch-cicd deploy/node\";
-        exit 1;
-      fi;
-      echo \"Fetching template: \$1\"; 
-      TMP_DIR=\$(mktemp -d); 
-      gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && 
-      mkdir -p cd-template.docs && 
-      mv \"\$TMP_DIR/templates/\$1/\"*.md cd-template.docs/ 2>/dev/null;
-      cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null && 
-      cp -r \"\$TMP_DIR/templates/\$1/\".[!.]* . 2>/dev/null; 
-      RET=\$?; 
-      rm -rf \"\$TMP_DIR\"; 
-      if [ \$RET -ne 0 ]; then 
-        echo \"Template \$1 not found or error occurred\"; 
-        exit 1; 
-      else 
-        echo \"✓ Template \$1 copied successfully\"; 
-        echo \"Note: Template markdown files were saved to cd-template.docs/ to avoid overwriting project files\"; 
-      fi;
-    }; f" 
+# Create init-cicd script
+cat > ~/.local/bin/gh-init-cicd << 'EOF'
+#!/bin/bash
+if [ -z "$1" ]; then
+  echo "Error: Template name required"
+  echo "Usage: gh-init-cicd <category/template>"
+  echo "Example: gh-init-cicd deploy/node"
+  exit 1
+fi
 
-  # Define the list-cicd alias with improved formatting
-  # # Lists available templates from the Repository
-  #   - uses the templates directory structure
-  # # Usage: gh list-cicd
-  LIST_ALIAS="!f() { 
-  echo \" \";
-  echo \" templates:\"; 
-  echo \"-------------------\"; 
-  TMP_DIR=\$(mktemp -d); 
-  gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && 
-  echo \"\" &&
-  for category in \$(find \"\$TMP_DIR/templates\" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\;); do
-    echo \"-- category: \$category\";
-    echo \"----------\";
-    for template in \$(ls -d \"\$TMP_DIR/templates/\$category\"/* 2>/dev/null | grep -v \"\\.git\" | xargs -n1 basename 2>/dev/null); do
-      echo \"  ✓ \$template  --  gh fetch-cicd \$category/\$template\";
-    done;
-    echo \"\";
-  done;
-  rm -rf \"\$TMP_DIR\";
-}; f"
-  
-  if gh alias list 2>/dev/null | grep -q "init-cicd"; then
-    echo -e "${YELLOW}Updating existing init-cicd alias${NC}"
-    gh alias delete init-cicd > /dev/null 2>&1
-  fi
+# Fetch template
+~/.local/bin/gh-fetch-cicd "$1"
 
-  if gh alias list 2>/dev/null | grep -q "fetch-cicd"; then
-    echo -e "${YELLOW}Updating existing fetch-cicd alias${NC}"
-    gh alias delete fetch-cicd > /dev/null 2>&1
-  fi
-  
-  if gh alias list 2>/dev/null | grep -q "list-cicd"; then
-    echo -e "${YELLOW}Updating existing list-cicd alias${NC}"
-    gh alias delete list-cicd > /dev/null 2>&1
-  fi
-  
-  # Set the aliases quietly (redirect output)
-  gh alias set init-cicd "$INIT_ALIAS" > /dev/null
-  gh alias set fetch-cicd "$FETCH_ALIAS" > /dev/null
-  gh alias set list-cicd "$LIST_ALIAS" > /dev/null  
+# Run setup script if available
+if [ -f ./CD-*.template-setup.sh ]; then
+  chmod +x ./CD-*.template-setup.sh 
+  ./CD-*.template-setup.sh
+fi
+EOF
 
-  # print available commands
+# Create fetch-cicd script
+cat > ~/.local/bin/gh-fetch-cicd << 'EOF'
+#!/bin/bash
+if [ -z "$1" ]; then
+  echo "Error: No template specified"
+  echo "Usage: gh-fetch-cicd <category/template>"
+  echo "Example: gh-fetch-cicd deploy/node"
+  exit 1
+fi
 
-  echo -e "${GREEN}✓ GitHub CLI aliases set up successfully${NC}"
-  
-  echo -e "\n${GREEN}Available commands:${NC}"
-  echo -e "  ${YELLOW}gh list-cicd${NC} - List available templates"
-  echo -e "  ${YELLOW}gh fetch-cicd <template-name>${NC} - Fetch a template into your project"
-  echo -e "  ${YELLOW}gh init-cicd <template-name>${NC} - Fetch and initialize a template"
+echo "Fetching template: $1"
+echo "$1" > .template-source
+
+# Template repo info
+USERNAME="${GITHUB_USERNAME:-AlekOmOm}"
+REPO="${REPO_NAME:-cicd-templates}"
+
+# Fetch and copy template
+TMP_DIR=$(mktemp -d)
+gh repo clone $USERNAME/$REPO "$TMP_DIR" > /dev/null 2>&1
+
+# Check if template exists
+if [ ! -d "$TMP_DIR/templates/$1" ]; then
+  echo "Error: Template $1 not found"
+  rm -rf "$TMP_DIR"
+  exit 1
+fi
+
+# Copy template files
+mkdir -p cd-template.docs
+mv "$TMP_DIR/templates/$1/"*.md cd-template.docs/ 2>/dev/null
+cp -r "$TMP_DIR/templates/$1/"* . 2>/dev/null
+cp -r "$TMP_DIR/templates/$1/".[!.]* . 2>/dev/null
+
+rm -rf "$TMP_DIR"
+echo "✓ Template $1 copied successfully\n"
+EOF
+
+# Create list-cicd script
+cat > ~/.local/bin/gh-list-cicd << 'EOF'
+#!/bin/bash
+# Template repo info
+USERNAME="${GITHUB_USERNAME:-AlekOmOm}"
+REPO="${REPO_NAME:-cicd-templates}"
+
+TMP_DIR=$(mktemp -d)
+gh repo clone $USERNAME/$REPO "$TMP_DIR" > /dev/null 2>&1
+
+echo -e "\nAvailable Templates:"
+echo -e "-------------------"
+
+for category in $(find "$TMP_DIR/templates" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;); do
+  echo -e "\n-- $category:"
+  for template in $(ls -d "$TMP_DIR/templates/$category"/* 2>/dev/null | grep -v "\.git" | xargs -n1 basename 2>/dev/null); do
+    echo "  ✓ $template  --  gh-fetch-cicd $category/$template"
+  done
+done
+
+rm -rf "$TMP_DIR"
+EOF
+
+
+# Make scripts executable
+chmod +x ~/.local/bin/gh-init-cicd
+chmod +x ~/.local/bin/gh-fetch-cicd
+chmod +x ~/.local/bin/gh-list-cicd
+
+# remove existing aliases
+gh alias delete init-cicd > /dev/null 2>&1
+gh alias delete fetch-cicd > /dev/null 2>&1
+gh alias delete list-cicd > /dev/null 2>&1
+
+# Add simple aliases that just call the scripts
+
+gh alias set init-cicd '!~/.local/bin/gh-init-cicd "$@"' --clobber > /dev/null 2>&1
+gh alias set fetch-cicd '!~/.local/bin/gh-fetch-cicd "$@"' --clobber > /dev/null 2>&1
+gh alias set list-cicd '!~/.local/bin/gh-list-cicd' --clobber > /dev/null 2>&1
+
+# Add to PATH if needed
+
+  #if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+  # export PATH="$HOME/.local/bin:$PATH"
+    
+
+  #  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+  #  echo "Added ~/.local/bin to PATH in ~/.bashrc"
+  #  echo "You may need to restart your shell or run 'source ~/.bashrc'"
+  # fi
+
 }
 
 # Display usage examples
 show_examples() {
-  echo -e "\n${GREEN}Setup complete! You can now use the following commands:${NC}"
+  echo -e "\n${BLUE}Setup complete!${NC}"
+  
+  echo -e "\n${YELLOW}gh commands:${NC}"
+  echo -e "  gh list-cicd"
+  echo -e "  gh init-cicd <category>/<template>"
+  echo -e "  gh fetch-cicd <category>/<template> \n"
+  
+
   echo -e "\n${YELLOW}List available templates:${NC}"
   echo -e "  gh list-cicd"
   
-  echo -e "\n${YELLOW}Fetch a template into your project:${NC}"
+  echo -e "\n${YELLOW}Fetch a CICD template into your project:${NC}"
   echo -e "  cd /path/to/your/project"
   echo -e "  gh fetch-cicd deploy/node"
   
@@ -214,6 +252,8 @@ show_examples() {
 
 # Main function
 main() {
+  echo -e " "
+  echo -e " "
   echo -e "${YELLOW}===== GitHub CI/CD Templates Setup =====${NC}"
   
   check_gh_cli
@@ -223,6 +263,7 @@ main() {
   show_examples
   
   echo -e "\n${GREEN}✓ Setup completed successfully!${NC}"
+  echo -e " "
 }
 
 # Run main function
