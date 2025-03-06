@@ -116,8 +116,31 @@ setup_aliases() {
   # # Fetches a template from the Repository
   #   - sets content at the root of the project
   # # Usage: gh fetch-cicd <template-name>
-  FETCH_ALIAS="!f() { echo \"Fetching template: \$1\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && mkdir -p cd-template.docs && mv \"\$TMP_DIR/templates/\$1/\"*.md cd-template.docs/ 2>/dev/null && cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null && cp -r \"\$TMP_DIR/templates/\$1/\".[!.]* . 2>/dev/null; RET=\$?; rm -rf \"\$TMP_DIR\"; if [ \$RET -ne 0 ]; then echo \"Template \$1 not found or error occurred\"; exit 1; else echo \"Template \$1 copied successfully\"; echo \"Note: Template markdown files were saved to cd-template.docs/ to avoid overwriting project files\"; fi; }; f"
-  
+    FETCH_ALIAS="!f() { 
+      if [ -z \"\$1\" ]; then
+        echo \"Error: No template specified\";
+        echo \"Usage: gh fetch-cicd category/template\";
+        echo \"Example: gh fetch-cicd deploy/node\";
+        exit 1;
+      fi;
+      echo \"Fetching template: \$1\"; 
+      TMP_DIR=\$(mktemp -d); 
+      gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && 
+      mkdir -p cd-template.docs && 
+      mv \"\$TMP_DIR/templates/\$1/\"*.md cd-template.docs/ 2>/dev/null;
+      cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null && 
+      cp -r \"\$TMP_DIR/templates/\$1/\".[!.]* . 2>/dev/null; 
+      RET=\$?; 
+      rm -rf \"\$TMP_DIR\"; 
+      if [ \$RET -ne 0 ]; then 
+        echo \"Template \$1 not found or error occurred\"; 
+        exit 1; 
+      else 
+        echo \"✓ Template \$1 copied successfully\"; 
+        echo \"Note: Template markdown files were saved to cd-template.docs/ to avoid overwriting project files\"; 
+      fi;
+    }; f" 
+
   # Define the list-cicd alias with improved formatting
   # # Lists available templates from the Repository
   #   - uses the templates directory structure
