@@ -14,7 +14,11 @@ pre-requisites:
 
 ### Quick Start
 
-1. **Setup**: `curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash`
+1. **Setup**: 
+- bash: `curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash`
+- ps: 
+  - in ps using wsl: `Invoke-WebRequest -Uri "https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh" -OutFile "setup.sh" `
+  - pure ps: `Invoke-Expression ([System.Text.Encoding]::UTF8.GetString((Invoke-WebRequest -Uri "https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.ps1").Content))`
 2. **View templates**: `gh list-cicd`
 3. **Apply template**: `cd your-project && gh init-cicd deploy/node`
 4. **Configure**: Edit `config/.env.config`
