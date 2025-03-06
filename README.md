@@ -1,8 +1,6 @@
 # Welcome Dev! 
 [for Contributors](./CONTRIBUTING.md)
 
-## use cases
-
 ## 🚀 **GitHub CI/CD Templates Setup**  
 
 ### Quick Start

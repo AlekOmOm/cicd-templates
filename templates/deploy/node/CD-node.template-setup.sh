@@ -3,6 +3,7 @@
 # Setup script for Node.js CD template integration
 
 # Colors for output
+BLUE='\033[0;34m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
@@ -141,9 +142,18 @@ fi
 
 # create .gitignore with npx gitignore node
 
-if ! command -v gitignore &> /dev/null; then
-    echo -e "${YELLOW}Installing gitignore from official Node.js .gitignore template...${NC}"
-    curl -o .gitignore https://raw.githubusercontent.com/github/gitignore/master/Node.gitignore
+# check if .gitignore exists
+if [ -f ".gitignore" ]; then
+    echo -e "\n${YELLOW}Existing .gitignore found.${NC}"
+    echo -e " ${NC}"
+
+    # confirm with user, otherwise install official Node.js template
+    read -p "Would to replace with the official Node.js template? (y/n): " -n 1 -r
+    echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Replacing .gitignore ...${NC}"
+        curl -o .gitignore https://raw.githubusercontent.com/github/gitignore/master/Node.gitignore
+    fi
 fi
 
 # 6. Remind about next steps
