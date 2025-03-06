@@ -142,9 +142,8 @@ fi
 # create .gitignore with npx gitignore node
 
 if ! command -v gitignore &> /dev/null; then
-    echo -e "${YELLOW}Installing gitignore node...${NC}"
-    npm install -g gitignore-cli
-    npx gitignore node
+    echo -e "${YELLOW}Installing gitignore from official Node.js .gitignore template...${NC}"
+    curl -o .gitignore https://raw.githubusercontent.com/github/gitignore/master/Node.gitignore
 fi
 
 # 6. Remind about next steps

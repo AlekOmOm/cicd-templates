@@ -12,12 +12,6 @@ NC='\033[0m' # No Color
 DEFAULT_USERNAME="AlekOmOm"  # Your GitHub username
 DEFAULT_REPO="cicd-templates"
 
-# permissions
-
-chmod +x scripts.setup/gh/*             # Make all files in the directory executable
- 
-
-
 
 # Function to check if gh CLI is installed
 check_gh_cli() {
