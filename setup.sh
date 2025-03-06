@@ -133,8 +133,8 @@ EOF
 #!/bin/bash
 if [ -z "$1" ]; then
   echo "Error: No template specified"
-  echo "Usage: gh-fetch-cicd <category/template>"
-  echo "Example: gh-fetch-cicd deploy/node"
+  echo "Usage: gh fetch-cicd <category/template>"
+  echo "Example: gh fetch-cicd deploy/node"
   exit 1
 fi
 
@@ -182,7 +182,7 @@ echo -e "-------------------"
 for category in $(find "$TMP_DIR/templates" -mindepth 1 -maxdepth 1 -type d -exec basename {} \;); do
   echo -e "\n-- $category:"
   for template in $(ls -d "$TMP_DIR/templates/$category"/* 2>/dev/null | grep -v "\.git" | xargs -n1 basename 2>/dev/null); do
-    echo "  ✓ $template  --  gh-fetch-cicd $category/$template"
+    echo "  ✓ $template  --  gh fetch-cicd $category/$template"
   done
 done
 
