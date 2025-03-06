@@ -106,10 +106,34 @@ setup_aliases() {
   echo -e "\n${YELLOW}Setting up GitHub CLI aliases...${NC}"
 
   # init-cicd alias; combining fetch + init setup.sh
+  # # runs 
+  #  - fetch-cicd <template-name>
+  #  - if CD-*.template-setup.sh exists, runs it
+  # # Usage: gh init-cicd <template-name>
   INIT_ALIAS="!f() { echo \"Initializing template: \$1\"; gh fetch-cicd \$1 && if [ -f \"./CD-*.template-setup.sh\" ]; then chmod +x ./CD-*.template-setup.sh && ./CD-*.template-setup.sh; fi; }; f"
   
   # Define the fetch-cicd alias
-  FETCH_ALIAS="!f() { echo \"Fetching template: \$1\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null; RET=\$?; rm -rf \"\$TMP_DIR\"; if [ \$RET -ne 0 ]; then echo \"Template \$1 not found or error occurred\"; exit 1; else echo \"Template \$1 copied successfully\"; fi; }; f"
+  # # Fetches a template from the Repository
+  #   - sets content at the root of the project
+  # # Usage: gh fetch-cicd <template-name>
+FETCH_ALIAS="!f() { 
+  echo \"Fetching template: \$1\"; 
+  TMP_DIR=\$(mktemp -d); 
+  gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && 
+  mkdir -p cd-template.docs && 
+  mv \"\$TMP_DIR/templates/\$1/\"*.md cd-template.docs/ 2>/dev/null && 
+  cp -r \"\$TMP_DIR/templates/\$1/\"* . 2>/dev/null && 
+  cp -r \"\$TMP_DIR/templates/\$1/\".[!.]* . 2>/dev/null; 
+  RET=\$?; 
+  rm -rf \"\$TMP_DIR\"; 
+  if [ \$RET -ne 0 ]; then 
+    echo \"Template \$1 not found or error occurred\"; 
+    exit 1; 
+  else 
+    echo \"Template \$1 copied successfully\"; 
+    echo \"Note: Template markdown files were saved to cd-template.docs/ to avoid overwriting project files\"; 
+  fi; 
+}; f"
   
   # Define the list-cicd alias with improved formatting
   LIST_ALIAS="!f() { echo \"Available templates:\"; TMP_DIR=\$(mktemp -d); gh repo clone $GITHUB_USERNAME/$REPO_NAME \"\$TMP_DIR\" > /dev/null 2>&1 && find \"\$TMP_DIR/templates\" -mindepth 1 -maxdepth 1 -type d -exec basename {} \\; | while read dir; do echo \"\n\033[1;34m→ \$dir\033[0m\"; ls -d \"\$TMP_DIR/templates/\$dir\"/* 2>/dev/null | grep -v \"\\.git\" | xargs -n1 basename 2>/dev/null | sed 's/^/  ✓ /'; done; rm -rf \"\$TMP_DIR\"; }; f"

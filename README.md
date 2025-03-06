@@ -3,13 +3,6 @@
 
 ## use cases
 
-as a *dev*, I can...
-- ***init** my project with CD-pipeline for Node.JS express app*
-
-pre-requisites:
-
-- server ready
-
 ## 🚀 **GitHub CI/CD Templates Setup**  
 
 ### Quick Start
