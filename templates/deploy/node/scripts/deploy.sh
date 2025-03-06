@@ -4,8 +4,6 @@ set -e
 # Try to source deployment utilities if available
 if [ -f "./scripts/deployment-utils.sh" ]; then
   source "./scripts/deployment-utils.sh"
-elif [ -f "./scripts/deployment_utils.sh" ]; then
-  source "./scripts/deployment_utils.sh"
 else
   # Fallback logging function if utilities aren't available
   log() {

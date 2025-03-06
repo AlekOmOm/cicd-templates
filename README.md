@@ -1,5 +1,5 @@
 # Welcome Dev! 
-[for Contributors](README-devs.md)
+[for Contributors](./CONTRIBUTING.md)
 
 ## use cases
 
@@ -12,6 +12,14 @@ pre-requisites:
 
 ## 🚀 **GitHub CI/CD Templates Setup**  
 
+### Quick Start
+
+1. **Setup**: `curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash`
+2. **View templates**: `gh list-cicd`
+3. **Apply template**: `cd your-project && gh init-cicd deploy/node`
+4. **Configure**: Edit `config/.env.config`
+5. **Deploy**: Push to GitHub
+
 ---
 ### 📂 **Directory Structure**  
 ```
@@ -23,13 +31,25 @@ cicd-templates/
   │     ├── infrastructure/  # terraform, kubernetes, provisioning
   │     ├── security/        # security hardening, access control, scanning
   ├── shared/                # reusable scripts, configs, common workflows
-  ├── setup.sh               # initialization script for users
-  ├── README.md              # documentation for usage
+  ├── setup.sh               # init for usage 
+  ├── README.md              # for usage
+  ├── CONTRIBUTING.md        # for the devs
+  ├── docs/                  # detailed docs
+  
 
  # note: only deploy/node implemented so far
 ```
 
 ---
+
+### 📦 **Available Templates**
+
+- **Deployment**
+  - `deploy/node`: Node.js Express 
+  - `deploy/react`: React 
+  - `deploy/python`: Python Flask
+  - 'deploy/rust_actix-web': Rust Actix-Web
+
 ### 📋 **Quick Start for Users**
 
 ```bash
