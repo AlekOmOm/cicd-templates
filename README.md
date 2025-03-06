@@ -1,32 +1,18 @@
-### 🚀 **GitHub CI/CD Templates Setup**  
+# Welcome Dev! 
+[for Contributors](README-devs.md)
 
-#### ✅ **Requirements**  
-- A single **public GitHub repository** (`cicd-templates`) containing multiple deployment templates
-- Each template is stored inside a **separate directory** within the repo
-- `gh` (GitHub CLI) is used to **fetch and list templates** using aliases
-- Templates should be **easy to update & maintain** without breaking existing workflows
+## use cases
+
+as a *dev*, I can...
+- ***init** my project with CD-pipeline for Node.JS express app*
+
+pre-requisites:
+
+- server ready
+
+## 🚀 **GitHub CI/CD Templates Setup**  
 
 ---
-
-### 📋 **Quick Start for Users**
-
-```bash
-# 1. One-time initialization (sets up gh CLI aliases)
-curl -s https://raw.githubusercontent.com/YOUR-USERNAME/cicd-templates/main/setup.sh | bash
-
-# 2. List available templates
-gh list-cicd
-
-# 3. Fetch a template into your project
-cd /path/to/your/project
-gh fetch-cicd deploy/node
-
-# 4. Customize and apply the template
-# Edit .env.config with your settings
-npm install --save-dev dotenv  # if not already installed
-node scripts/apply-config.js
-```
-
 ### 📂 **Directory Structure**  
 ```
 cicd-templates/
@@ -40,10 +26,33 @@ cicd-templates/
   ├── setup.sh               # initialization script for users
   ├── README.md              # documentation for usage
 
- # note: only deploy implemented so far
+ # note: only deploy/node implemented so far
 ```
 
 ---
+### 📋 **Quick Start for Users**
+
+```bash
+# 1. One-time initialization (sets up gh CLI aliases)
+curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash
+
+# 2. List available templates
+gh list-cicd
+
+# 3. Initialize a template in your project (fetches and sets up)
+cd /path/to/your/project
+gh init-cicd deploy/node
+
+# 4. Set config
+vim ./config/.env.config # populate with your settings
+
+# 5. Commit and push to trigger the CI/CD pipeline
+git add .
+git commit -m "Add CI/CD configuration"
+git push
+
+```
+
 
 ### 🔍 **Detailed Usage Guide**
 
@@ -53,13 +62,13 @@ You have two options to set up the GitHub CLI aliases:
 
 **Option A: Using setup.sh (recommended)**
 ```bash
-curl -s https://raw.githubusercontent.com/YOUR-USERNAME/cicd-templates/main/setup.sh | bash
+curl -s https://raw.githubusercontent.com/AlekOmOm/cicd-templates/main/setup.sh | bash
 ```
 
 **Option B: Manual setup**
 ```bash
 # Clone the template repo temporarily
-git clone https://github.com/YOUR-USERNAME/cicd-templates.git /tmp/cicd-templates
+git clone https://github.com/AlekOmOm/cicd-templates.git /tmp/cicd-templates
 
 # Run the initialization script
 bash /tmp/cicd-templates/templates/deploy/node/init.script.sh
@@ -129,27 +138,6 @@ gh fetch-cicd deploy/node
    git commit -m "Add CI/CD configuration"
    git push
    ```
-
----
-
-### 🔧 **Development & Maintenance Workflow**  
-
-#### **Adding a New Template**  
-1. Create a feature branch: `git checkout -b <branch-name>`
-2. Create directory in the appropriate category: `mkdir -p templates/deploy/new-template`
-3. Add required files (`deploy.yml`, `Dockerfile`, etc.)
-4. Commit & push changes
-5. Submit a PR
-
-#### **Updating a Template**  
-1. Create an update branch: `git checkout -b update/deploy-node`
-2. Make your updates
-3. Commit & push changes
-4. Submit a PR
-
-#### **Sharing Common Scripts**  
-- Use `shared/` for reusable scripts  
-- Templates can reference `shared/` using symbolic links or `wget`/`curl` in setup scripts  
 
 ---
 
