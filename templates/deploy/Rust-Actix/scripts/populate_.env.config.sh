@@ -31,9 +31,52 @@ if [ -f "$ENV_CONFIG_FILE" ]; then
     cp "$ENV_CONFIG_FILE" "${ENV_CONFIG_FILE}.bak"
     echo -e "${GREEN}Created backup at ${ENV_CONFIG_FILE}.bak${NC}"
 else
-    
     # Default content - will be used if no existing file
-    cat > "$ENV_CONFIG_FILE" << 'EOF
+    cat > "$ENV_CONFIG_FILE" << 'EOF'
+# Application Configuration
+APP_NAME=actix-web-app
+APP_DESCRIPTION="Rust Actix-Web application with CD pipeline"
+APP_LICENSE=MIT
+APP_VERSION=0.1.0
+
+# Rust Configuration
+RUST_VERSION=1.77
+RUST_MAIN_PATH=./src/main.rs
+BINARY_NAME=app
+
+# Docker Configuration
+DOCKER_REGISTRY=ghcr.io
+RESTART_POLICY=unless-stopped
+
+# Environment Configuration
+DEV_ENV=development
+PROD_ENV=production
+DEV_LOG_LEVEL=debug
+PROD_LOG_LEVEL=info
+
+# Deployment Configuration
+DEV_BRANCH=dev
+PROD_BRANCH=main
+
+# Env Prod
+PROD_PORT=8080
+PROD_HOST=0.0.0.0
+PROD_RUST_LOG=info
+
+# Env dev
+DEV_PORT=3000
+DEV_HOST=0.0.0.0
+DEV_RUST_LOG=debug
+
+# Auto-Port Escalation (Optional)
+AUTO_PORT_ESCALATE=false
+ ## prod port range
+PROD_PORT_RANGE_START=  # default is PROD_PORT
+PROD_PORT_RANGE_END=    # default is 99 + PROD_PORT  
+ ## dev port range
+DEV_PORT_RANGE_START=   # default is DEV_PORT 
+DEV_PORT_RANGE_END=     # default is 99 + DEV_PORT
+EOF
 fi
 
 # Function to display the current configuration with line numbers
@@ -70,12 +113,24 @@ echo -e " - enter -> continue with the current configuration.${NC}\n"
 echo -e "   ${NC}"
 echo -e " edit by entering: ${NC}"
 echo -e "${YELLOW}    <line-number> <variable-value>${NC}\n\n"
+
 while true; do
     read -p "> " line_input
     
     # Exit loop if empty input
     if [ -z "$line_input" ]; then
         break
+    fi
+    
+    # Handle special commands
+    if [ "$line_input" = "done" ]; then
+        break
+    elif [ "$line_input" = "refresh" ]; then
+        display_config
+        continue
+    elif [ "$line_input" = "quit" ]; then
+        echo -e "${YELLOW}Exiting without saving changes.${NC}"
+        exit 0
     fi
     
     # Parse line number and value
@@ -129,7 +184,6 @@ echo -n "Is this configuration correct? (y/n, default: y): "
 read final_confirm
 final_confirm=${final_confirm:-y}
 
-
 if [[ $final_confirm =~ ^[Yy]$ ]]; then
     # Remove backup file if it exists
     if [ -f "${ENV_CONFIG_FILE}.bak" ]; then
@@ -147,48 +201,4 @@ else
 fi
 
 # Exit with success
-exit 0'
-# Application Configuration
-APP_NAME=actix-web-app
-APP_DESCRIPTION="Rust Actix-Web application with CD pipeline"
-APP_LICENSE=MIT
-APP_VERSION=0.1.0
-
-# Rust Configuration
-RUST_VERSION=1.77
-RUST_MAIN_PATH=./src/main.rs
-BINARY_NAME=app
-
-# Docker Configuration
-DOCKER_REGISTRY=ghcr.io
-RESTART_POLICY=unless-stopped
-
-# Environment Configuration
-DEV_ENV=development
-PROD_ENV=production
-DEV_LOG_LEVEL=debug
-PROD_LOG_LEVEL=info
-
-# Deployment Configuration
-DEV_BRANCH=dev
-PROD_BRANCH=main
-
-# Env Prod
-PROD_PORT=8080
-PROD_HOST=0.0.0.0
-PROD_RUST_LOG=info
-
-# Env dev
-DEV_PORT=3000
-DEV_HOST=0.0.0.0
-DEV_RUST_LOG=debug
-
-# Auto-Port Escalation (Optional)
-AUTO_PORT_ESCALATE=false
- ## prod port range
-PROD_PORT_RANGE_START=  # default is PROD_PORT
-PROD_PORT_RANGE_END=    # default is 99 + PROD_PORT  
- ## dev port range
-DEV_PORT_RANGE_START=   # default is DEV_PORT 
-DEV_PORT_RANGE_END=     # default is 99 + DEV_PORT
-EOF
+exit 0
