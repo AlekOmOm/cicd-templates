@@ -30,4 +30,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
   CMD curl -f http://localhost:${PORT}/ || exit 1
 
 # Run the application
-CMD ["node", "src/server.js"]
+CMD ["node", "${NODE_SERVER_PATH}"]
