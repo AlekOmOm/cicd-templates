@@ -1,0 +1,145 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main 
+      - dev 
+  pull_request:
+    branches:
+      - main 
+      - dev 
+
+jobs:
+  build:
+    name: Build and Push Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Set environment variables from config and branch
+      - name: Set environment variables
+        id: set-env
+        run: |
+          chmod +x ./scripts/set-env.sh
+          ./scripts/set-env.sh "${{ github.ref_name }}" "${{ github.sha }}" >> $GITHUB_ENV
+      
+      # Set up Rust toolchain
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+      
+      - name: Run tests
+        run: cargo test
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG }}
+            ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.LATEST_TAG }}
+          build-args: |
+            RUST_VERSION=${{ env.RUST_VERSION }}
+            APP_ENV=${{ env.APP_ENV }}
+            PORT=${{ env.PORT }}
+  
+  deploy:
+    name: Deploy to server
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          chmod +x ./scripts/set-env.sh
+          ./scripts/set-env.sh "${{ github.ref_name }}" "${{ github.sha }}" >> $GITHUB_ENV
+
+      - name: Prepare deployment files
+        run: |
+          mkdir -p ./config
+          
+          chmod +x ./scripts/set-env.sh
+          ./scripts/set-env.sh "${{ github.ref_name }}" "${{ github.sha }}" > ./config/.env.deploy
+
+          # Ensure dos2unix is installed 
+          if ! command -v dos2unix &> /dev/null
+          then
+              sudo apt-get update && sudo apt-get install -y dos2unix
+          fi
+          dos2unix ./config/.env.* 2>/dev/null || true
+          dos2unix ./scripts/*.sh 2>/dev/null || true
+      
+          sed -i 's/\r$//' ./config/.env.deploy
+
+      - name: Copy deployment files to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "scripts/deploy.sh,docker-compose.yml,config/.env.config,config/.env.deploy,scripts/set-env.sh,scripts/deployment-utils.sh,scripts/deployment_utils.sh,scripts/auto_port-escalation.sh,scripts/*.sh"
+          target: "${{ env.DEPLOYMENT_PATH }}"
+
+      - name: Deploy on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ${{ env.DEPLOYMENT_PATH }}
+            
+            # Fix permissions
+            chmod +x ./scripts/*.sh 2>/dev/null || true
+            chmod +x ./scripts/deploy.sh
+            chmod +x ./scripts/set-env.sh
+            
+            # Run deployment
+            ./scripts/deploy.sh
